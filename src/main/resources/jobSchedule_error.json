@@ -1,0 +1,52 @@
+{
+  "tasks": [
+    {
+      "name": "task1",
+      "cron": "* * * * * ? *",
+      "testJob": {
+        "jobName": "task1-job",
+        "jobQueue": "BatchJQ",
+        "jobDefinition": "Perf-JobDef",
+        "containerOverrides": {
+          "command": [
+            "string"
+          ],
+          "environment": [
+            {
+              "name": "string",
+              "value": "string"
+            }
+          ],
+          "instanceType": "string",
+          "memory": 4,
+          "resourceRequirements": [
+            {
+              "resourceType": "string",
+              "value": "string"
+            }
+          ],
+          "vcpus": 1
+        }
+      }
+    },
+    {
+      "name": "task2",
+      "cron": "* * * * * ? *",
+      "testJob": {
+        "jobName": "task2-job",
+        "jobQueue": "BatchJQ",
+        "jobDefinition": "Perf-JobDef",
+        "containerOverrides": "test"
+      }
+    },
+    {
+      "name": "task3",
+      "cron": "* * * * * ? *",
+      "testJob": {
+        "jobName": "task3-job",
+        "jobQueue": "BatchJQ",
+        "jobDefinition": "Perf-JobDef"
+      }
+    }
+  ]
+}

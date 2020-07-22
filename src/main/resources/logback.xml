@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="logback-microservice.xml"/>
+
+    <!-- Always log the startup message of the http service -->
+    <logger name="com.simacan.base.http.HttpService" level="INFO" />
+    <logger name="org.quartz" level="WARN" />
+
+</configuration>

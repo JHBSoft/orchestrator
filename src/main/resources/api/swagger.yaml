@@ -1,0 +1,499 @@
+swagger: '2.0'
+info:
+  title: TestFramework Orchestrator Service
+  version: 0.1.0
+  description: |
+    The TestFramework Orchestrator Service adds to major functions to the TestFramework.
+    - Github Hook<br>
+    This service listens to Github webhook data send to it, whenever (Gatling) test scripts are uploaded to Github.
+    It then will pull the latest version of the scripts from Github and offers them to the GatlingRunner available in
+    the TestFramework.
+    - Scheduler service<br>
+    The TestFramework makes use of AWS Batch Jobs to run the individual Gatling testscripts. This services provides a
+    scheduling service to insert (test)Jobs with proper configuration to AWS Batch.
+
+    The API of this service offers calls to monitor and perform actions in the TestFramework.
+    > For security reasons the Github Hook and Schedule Service API are offered on different web ports. Those can be configured.
+schemes: [ http ]
+basePath: /api/v1
+produces: [ application/json ]
+consumes: [ application/json ]
+
+paths:
+  # SchedulerApiRouteProvider Paths
+  /scheduler/encrypt-keys:
+    post:
+      description: Returns encrypted values for the environment values provided. Those can be used in the GatlingJobOptions (#/definitions/GatlingJobOption).
+      operationId: encrypt-keys
+      parameters:
+        - $ref:  "#/parameters/EncryptKeysRequest"
+      tags:
+        - scheduler
+      responses:
+        200:
+          description: Successfully created encrypted values returned
+          schema:
+            $ref: "#/definitions/EncryptKeysRequestResponse"
+  /scheduler/get-all-crondata:
+    get:
+      description: |
+        Returns the scheduling data for all configured tasks in the orchestrator. In the response also the next firing
+        time will be included.
+      operationId: get-all-crondata
+      tags:
+        - scheduler
+      responses:
+        200:
+          description: |
+            Crondata for all tasks
+          schema:
+            $ref: "#/definitions/AllCronDataResponse"
+  /scheduler/get-all-tasks:
+    get:
+      description: |
+        Returns all the schedule task descriptions as currently configured.
+      operationId: get-all-tasks
+      tags:
+        - scheduler
+      responses:
+        200: { $ref: "#/responses/AllTasksResponse"}
+        500:
+          description: The scheduler is not running, an empty list of tasks is returned.
+  /scheduler/job-count:
+    get:
+      description: |
+        Returns the number of currently loaded scheduled tasks in the orchestrator
+      operationId: job-count
+      tags:
+        - scheduler
+      responses:
+        200:
+          description: orchestrator is running, number of scheduled jobs returned
+          schema:
+            $ref: "#/definitions/JobCount"
+        500:
+          description: an error occured while retrieving jobCount<br>jobCount is set to 0
+          schema:
+            $ref: "#/definitions/JobCount"
+  /scheduler/restart:
+    post:
+      description: |
+        Restarts the scheduler engine of the orchestrator. Before restarting the schedule file is checked.
+        If this file is not correct, the scheduler will not be restarted.
+      operationId: restart
+      tags:
+        - scheduler
+      parameters:
+        - $ref: "#/parameters/RestartRequest"
+      responses:
+        200:
+          description: the scheduler is successfully restarted, the number of currently scheduled jobs is returned
+          schema:
+            $ref: "#/definitions/JobCount"
+        500:
+          description: the scheduler cannot be restarted, jobCount is set to 0
+          schema:
+            $ref: "#/definitions/JobCount"
+  /scheduler/submit-gatling-job:
+    post:
+      description: |
+        Submit a Gatling Job manually to the TestFramework. This job will be submitted to AWS Batch.
+        If not configured in the task, the JobTemplate and JobQueue are used for the configuration settings
+      operationId: submit-gatling-job
+      parameters:
+        - $ref: "#/parameters/SubmitGatlingJobRequest"
+      tags:
+        - scheduler
+      responses:
+        200:
+          description: |
+            Successful submitted job.<br>The taskdescription contains the values as submitted to AWS Batch.
+            This includes any sanitized name, and the JobTemplate and JobQueue used.<br>The cron expression will be
+            an empty string.
+          schema: { $ref: "#/definitions/TaskDescription"}
+        406:
+          description: |
+            Submitting the job failed. The reason is in the response
+
+  /scheduler/validate-jobschedule-json:
+    post:
+      description: |
+        Validates the a jobSchedule json content. This is the job schedule file which can be uploaded to TestFramework.
+        Normally you would find this file in the TestFramework-Scripts repository.
+      operationId: validate-jobschedule-json
+      parameters:
+        - $ref: "#/parameters/TaskDescriptionFile"
+      tags:
+        - scheduler
+      responses:
+        200:
+          description: |
+            If successful decoded, the input is returned without any updates.
+          schema:
+            $ref: "#/definitions/TaskDescriptionFile"
+        400:
+          description: |
+            The json file is not valid. An indication of the problem is replied in the response message.
+        406:
+          description: |
+            The json file has tasks with invalid cron-expressions. A list with all invalid tasks is returned.
+
+
+  # GitHubHookApiRouteProvider Paths
+  /github:
+    post:
+      description: |
+        The url listing for Github Webhook calls. Only if the webhook received is equal to the branch and repository
+        configured in the Orchestrator, the received webhook will be handled and the repository / branch will be pulled.
+      operationId: github
+      tags:
+        - WebHook
+      parameters:
+        - in: header
+          name: X-Hub-Signature
+          description: Security Header for Github Webhook Messages
+          type: string
+        - $ref: "#/parameters/GithubWebHookMessage"
+
+      responses:
+        200:
+          description: The webhook has been received properly and the repository / branch has been pulled successfully
+          schema:
+            type: string
+            example: Handled
+
+  #From BaseLib Provided
+  /about:
+    get:
+      description: |
+        Returns build information of the service.
+        > Be aware, the basepath /api/v1 has to be ommitted in the function call.<br>
+        > So the call would be: http(s)://< host >:9000/about
+      operationId: about
+      tags:
+        - Other
+      responses:
+        200:
+          description: The build information of the service is returned.
+  /health:
+    get:
+      description: |
+        Returns "RUNNING" whenever the service is up and running
+        > Be aware, the basepath /api/v1 has to be ommitted in the function call.<br>
+        > So the call would be: http(s)://< host >:9000/about
+      operationId: health
+      tags:
+        - Other
+      responses:
+        200:
+          description: Field indicating the service is running
+          schema:
+            type: object
+            properties:
+              health:
+                type: string
+                example: "RUNNING"
+
+#### RESPONSES ####
+responses:
+  ServiceInfoResponse:
+    description: Build information of the currently running orchestrator
+    schema:
+      type: object
+      properties:
+        version:
+          type: string
+        name:
+          type: string
+        buildDate:
+          type: string
+          format: date-time
+        buildTime:
+          type: string
+        scalaVersion:
+          type: string
+
+  AllTasksResponse:
+    description: All the tasks currently scheduled by the orchestrator
+    schema:
+      $ref: "#/definitions/AllTasksResponse"
+
+#### PARAMETERS ####
+parameters:
+
+  RestartRequest:
+    name: RestartRequest
+    in: body
+    schema: { $ref: "#/definitions/RestartRequest" }
+    required: false
+    description: |
+      The data associated with restarting the scheduler service<br><br>
+      The filename of the scheduleFile can be both a filename only or a full path to the scheduleFile.
+      If only a filename is provided, the scheduleFile is expected in the resource directory.<br>
+      If no scheduleFile is provided, the currently used scheduleFile filepath is used.<br><br>
+
+  SubmitGatlingJobRequest:
+    name: SubmitGatlingJobRequest
+    in: body
+    schema: { $ref: "#/definitions/SubmitGatlingJobRequest" }
+    required: true
+    description: |
+      Submit request for a Gatling Job. The name is optional and only used for referal purposes in AWS Batch.<br>
+      If name is not provided, the orchestrator will generate a name with format  Task_yyyy-mm-dd_hhmmss
+
+  EncryptKeysRequest:
+    name: EncryptKeyRequest
+    in: body
+    schema: { $ref: "#/definitions/EncryptKeysRequestResponse"}
+    required: true
+    description: |
+      A list of value to be encrypted. The values will be encrypted and in the response the names will
+      be copied back for reference purposes.
+
+  TaskDescriptionFile:
+    name: TaskDescriptionFile
+    in: body
+    schema: { $ref: "#/definitions/TaskDescriptionFile" }
+    required: true
+    description: The content of a jobSchedule.json file
+
+  GithubWebHookMessage:
+    name: GitHubWebHookMessage
+    description: |
+      The message for the webhook should include at least the following structure. All other fields will be neglected.
+    in: body
+    schema:
+      type: object
+      required:
+        - ref
+        - repository
+      properties:
+        ref:
+          type: string
+          description: The reference of the branch peing pushed
+          example: "refs/heads/develop"
+        repository:
+          type: object
+          required:
+            - full_name
+          properties:
+            full_name:
+              type: string
+              description: The full name of the repository being pushed to
+              example: simacan/TestFramework-Scripts
+
+#### DEFINITIONS ####
+definitions:
+
+  JobCount:
+    type: object
+    format: json
+    properties:
+      jobCount:
+        type: integer
+        description: number of scheduled jobs
+        example: 5
+
+  RestartRequest:
+    type: object
+    format: json
+    properties:
+      scheduleFile:
+        type: string
+        description: the filename of the schedule file
+        example: /mnt/scripts/jobSchedule.json
+
+  AllTasksResponse:
+    type: object
+    description: An array of all tasks currently loaded
+    properties:
+      tasks:
+        type: array
+        description: all the tasks
+        items: { $ref: "#/definitions/TaskDescription" }
+
+  SubmitGatlingJobRequest:
+    type: object
+    required:
+      - gatlingJob
+    properties:
+      name:
+        type: string
+        description: |
+          The name of the job. The first character must be alphanumeric, and up to 128 letters
+          (uppercase and lowercase), numbers, hyphens, and underscores are allowed.<br>
+          All non allowed characters will be removed by the orchestrator. Spaces are replaced by underscores.
+        example: MyManualJob
+      gatlingJob: { $ref: "#/definitions/GatlingJob" }
+
+  TaskDescriptionFile:
+    type: object
+    description: The jobSchedule.json file definition
+    required:
+      - tasks
+    properties:
+      tasks:
+        type: array
+        description: |
+          The tasks configured in this file
+        items:
+          $ref: "#/definitions/TaskDescription"
+      defaultJobTemplate:
+        type: string
+        description: |
+          The AWS Batch JobTemplate to be used by all the tasks<br>
+          This will override the JobTemplate setting configured in the Orchestrator. Per individual task,
+          the jobTemplate can still be overwritten.
+        example:
+          MyDefaultJobTemplate
+      defaultJobQueue:
+        type: string
+        description: |
+          The AWS Batch JobQueue to submit all the tasks to<br>
+          This will override the JobQueue setting configured in the Orchestrator. Per individual task,
+          the jobQueue can still be overwritten.
+        example:
+          MyDefaultJobTemplate
+
+  TaskDescription:
+    type: object
+    description: Description of a Task
+    required:
+      - name
+      - cron
+    properties:
+      name:
+        type: string
+        description: |
+          name of the task, this name will also appear as the name of the Job in AWS Batch<br>
+          The first character must be alphanumeric, and up to 128 letters
+          (uppercase and lowercase), numbers, hyphens, and underscores are allowed.<br>
+          All non allowed characters will be removed by the orchestrator. Spaces are replaced by underscores.
+        example: <taskname>
+      cron:
+        type: string
+        description: cron expression (see https://www.freeformatter.com/cron-expression-generator-quartz.html)
+        example: 0 */10 6-23 * * ? *
+      gatlingJob:
+         { $ref: "#/definitions/GatlingJob"}
+
+  GatlingJob:
+    type: object
+    description: Configuration parameters for a Gatling script job
+    required:
+      - script
+    properties:
+      script:
+        type: string
+        description: name of the script to execute
+        example: com.simacan.sct.MegaSim
+      description:
+        type: string
+        description: optional description for the script
+        example: <description>
+      jobTemplate:
+        type: string
+        description: AWS Batch JobTemplate to be used. If not provided the configured template will be used
+        example: aws-jobtemplate-name
+      jobQueue:
+        type: string
+        description: AWS Batch Queue to submit the job to. If not provided the configured queue will be used
+        example: aws-batch-jobqueue
+      options:
+        type: array
+        description: the environment variables for the script to be executed
+        items: { $ref: "#/definitions/GatlingJobOption"}
+      containerOptions:
+        { $ref: "#/definitions/ContainerOptions"}
+
+  GatlingJobOption:
+    type: object
+    description: environment variable for the script<br>example shows GS_USERCOUNT=5
+    required:
+      - name
+      - value
+    properties:
+      name:
+        type: string
+        description: environment variable name
+        example: GS_USERCOUNT
+      value:
+        type: string
+        description: environment variable value
+        example: "5"
+      encrypted:
+        type: boolean
+        description: |
+          set to true if the value is encrypted.
+          See [/scheduler/encryptkeys](#/scheduler/encryptKeys) for more information
+        example: false
+
+  ContainerOptions:
+    type: object
+    description: vCPU and Memory settings for the container running the gatling script.
+    properties:
+      vCpu:
+        type: integer
+        description: |
+          the number of vCpu assigned to the GatlingRunner (default value: 1)
+        example: 1
+      memory:
+        type: integer
+        description: |
+          the amount of memory assigned to the GatlingRunner in MB (default value: 1024 (equals 1GB))
+        example: 1024
+
+  EncryptKeysRequestResponse:
+    type: object
+    description: list of values to encrypt
+    required:
+      - items
+    properties:
+      items:
+        type: array
+        items: { $ref: "#/definitions/EncryptKeyItem"}
+
+  EncryptKeyItem:
+    type: object
+    description: value to encrypt
+    required:
+      - value
+    properties:
+      value:
+        type: string
+        example: <mysecretvalue>
+      name:
+        type: string
+        example: <myname>
+
+  AllCronDataResponse:
+    type: object
+    description: All tasks currently scheduled in the orchestrator
+    required:
+      - tasks
+    properties:
+      tasks:
+        type: array
+        items:
+          $ref: "#/definitions/TaskCronData"
+
+  TaskCronData:
+    type: object
+    description: CronData for a task
+    required:
+      - task
+      - cronExpression
+      - nextFiringTime
+    properties:
+      task:
+        type: string
+        description: Name of the task, as used by the orchestrator
+        example: task1
+      cronExpression:
+        type: string
+        description: The cronExpression for the task
+        example: 0 */10 6-23 * * ? *
+      nextFiringTime:
+        type: string
+        format: date-time
+        description: The next firing time for the task

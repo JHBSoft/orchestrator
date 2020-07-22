@@ -1,0 +1,19 @@
+{
+  "tasks": [
+    {
+      "name": "task5",
+      "cron": "*/4 * * * * ? *",
+      "shellJob": "shell5"
+    },
+    {
+      "name": "task6",
+      "cron": "*/5 * * * * ? *",
+      "otherJob": "other6"
+    },
+    {
+      "name": "task7",
+      "cron": "*/1 * * * * ? *",
+      "otherJob": "other7"
+    }
+  ]
+}

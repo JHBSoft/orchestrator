@@ -1,0 +1,59 @@
+{
+  "tasks": [
+    {
+      "unexistingfield": "task0",
+      "cron": "*/1 * * * * ? *",
+      "gatlingJob": {
+        "script": "script0",
+        "description": "description0",
+        "options": [
+          {
+            "name": "GS_USER",
+            "value": "gs_user_value0"
+          },
+          {
+            "name": "GS_SECRET",
+            "value": "gs_secret_value0"
+          }
+        ]
+      }
+    },
+    {
+      "name": "task1",
+      "cron": "*/2 * * * * ? *",
+      "gatlingJob": {
+        "script": "script1",
+        "jobTemplate": "PTC_MegaSim",
+        "jobQueue": "PTC_TestQueue",
+        "options": [
+          {
+            "name": "GS_USER",
+            "value": "gs_user_value1"
+          },
+          {
+            "name": "GS_SECRET",
+            "value": "gs_secret_value1"
+          }
+        ]
+      }
+    },
+    {
+      "name": "task2",
+      "cron": "*/3 * * * * ? *",
+      "gatlingJob": {
+        "script": "script2",
+        "description": "description2"
+      }
+    },
+    {
+      "name": "task3",
+      "cron": "*/4 * * * * ? *",
+      "shellJob": "shell3"
+    },
+    {
+      "name": "task4",
+      "cron": "*/5 * * * * ? *",
+      "otherJob": "other4"
+    }
+  ]
+}

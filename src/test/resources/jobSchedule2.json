@@ -1,0 +1,22 @@
+{
+  "tasks": [
+    {
+      "name": "task0",
+      "cron": "* * * * * ? *",
+      "gatlingJob": {
+        "script": "script0",
+        "description": "description0",
+        "options": [
+          {
+            "name": "GS_USER",
+            "value": "gs_user_value0"
+          },
+          {
+            "name": "GS_SECRET",
+            "value": "gs_secret_value0"
+          }
+        ]
+      }
+    }
+  ]
+}
